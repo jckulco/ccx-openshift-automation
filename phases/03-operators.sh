@@ -45,7 +45,8 @@ else
     | oc_ apply -f - >/dev/null
   T="$(mktemp -d)"
   helm template ibm-licensing ibm-content-cortex/ibm-licensing-cluster-scoped --version "$LS_VERSION" \
-    -n ibm-licensing --include-crds > "$T/rendered.yaml" 2>/dev/null
+    -n ibm-licensing --include-crds > "$T/rendered.yaml" 2>"$T/helm.err" \
+    || { cat "$T/helm.err" >&2; die "helm template del License Service falló (versión $LS_VERSION)."; }
   python3 - "$T" <<'PY'
 import sys, yaml
 t = sys.argv[1]

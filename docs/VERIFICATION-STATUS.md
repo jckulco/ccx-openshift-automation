@@ -19,6 +19,13 @@ Leyenda: ✅ ejecutado y funcionando en la sesión de referencia (manualmente) �
 | Esperas (`wait_until`, nombres de pods `ccx-content-pg-1`, `ibm-pg-cluster-mg-1`, `ccx-wdu-pg-1`, `ibm-pg-pooler-wdu-*`, `ibm-reasoning-service-deploy`, detección de Redis/Model Gateway por nombre) | ⚠️ | Nombres tomados de salidas de la sesión; si alguno difiere, la fase falla con tiempo agotado y se corrige el prefijo en el script |
 | Sintaxis bash, ShellCheck, `py_compile`, `toml_set`, fase 00 con `oc` falso | 🧪 | `bash tests/run-tests.sh` |
 
+## Primera ejecución real (TechZone, OCP 4.21.24, 5 workers 32 vCPU/128 GB, ODF)
+- Fases 00, 01 (tras corregir PATH de Helm), 02, 03 y 04 ✅ (en 04 hubo que reintentar el pooler de WDU por el webhook de PG: ver TROUBLESHOOTING #22; ahora automatizado con `apply_retry`).
+- Fases 05 (Content Ready), 06 (Model Gateway + AI Services, Reasoning Service listo) y 07 (metadatos + JAR en Navigator) ✅ en esa misma ejecución.
+- Fase 07: falso positivo del detector de errores (`SETTABLE_ONLY_ON_CREATE` coincidía con `E_[A-Z_]+`); corregido y con marcas por paso (TROUBLESHOOTING #23).
+- Observado en la tabla de la fase 08: rutas con 404 en `/` (normal), `model-gateway` 503 (ruta externa, ver #5) y `legal-hold-mcp-server-route` 503 (sin investigar).
+- Pendiente de verificar tras esta ejecución: pasos manuales (ACCE, plug-in/layout de Navigator) y prueba funcional del agente.
+
 ## Cómo cerrar los ⚠️
 Ejecuta en un cluster **desechable** de TechZone y anota en un issue cada fase que necesite ajuste. Orden de riesgo (de mayor a menor):
 fase 04 (nombres de pods/readiness), fase 06 (MG: readiness y `admins.json`), fase 03 (`--silent`), fase 05 (property files reales).

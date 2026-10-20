@@ -87,6 +87,20 @@ t "00-configure no interactivo" env PATH="$ROOT/tests/fake-bin:$PATH" OC="$ROOT/
 t "00 guarda config y secretos 600" bash -c "grep -q \"WXAI_MODEL_ID='openai/gpt-oss-120b'\" $TMP/st00/config.env && [ \$(stat -c %a $TMP/st00/secrets.env) = 600 ] && ! grep -q dummy $TMP/st00/config.env"
 t "install.sh status" env PATH="$ROOT/tests/fake-bin:$PATH" OC="$ROOT/tests/fake-bin/oc" CCX_STATE_DIR="$TMP/st00" bash install.sh status
 
+echo "== apply_retry (webhook de PG intermitente)"
+cat > "$TMP/flaky-oc" <<'F'
+#!/usr/bin/env bash
+# falla con error de webhook las 2 primeras veces; si FLAKY_HARD=1 falla siempre con un error no transitorio
+n="$(cat "$FLAKY_CNT" 2>/dev/null || echo 0)"; echo $((n+1)) > "$FLAKY_CNT"
+if [ "${FLAKY_HARD:-0}" = 1 ]; then echo 'Error: invalid spec' >&2; exit 1; fi
+if [ "$n" -lt 2 ]; then echo 'failed calling webhook "vpooler.pg.ibm.com": connection refused' >&2; exit 1; fi
+echo "pooler created"
+F
+chmod +x "$TMP/flaky-oc"
+t "apply_retry reintenta ante webhook y termina OK" bash -c "export FLAKY_CNT=$TMP/c1 APPLY_RETRY_DELAY=0 CCX_STATE_DIR=$TMP/st-ar OC=$TMP/flaky-oc; source lib/common.sh; apply_retry -f x && [ \$(cat $TMP/c1) = 3 ]"
+t "apply_retry no reintenta errores no transitorios" bash -c "export FLAKY_CNT=$TMP/c2 FLAKY_HARD=1 APPLY_RETRY_DELAY=0 CCX_STATE_DIR=$TMP/st-ar OC=$TMP/flaky-oc; source lib/common.sh; ! apply_retry -f x 2>/dev/null && [ \$(cat $TMP/c2) = 1 ]"
+t "PATH incluye /usr/local/bin tras cargar common.sh" bash -c "PATH=/usr/bin:/bin CCX_STATE_DIR=$TMP/st-ar; source lib/common.sh; case \":\$PATH:\" in *:/usr/local/bin:*) true;; *) false;; esac"
+
 echo "== plantillas silent vs validadores de IBM"
 if [ ! -d .work/ibm-content-cortex-containers ]; then
   mkdir -p .work && git clone -q --depth 1 --branch "${IBM_REPO_REF:-26.0.1}" https://github.com/ibm-ecm/ibm-content-cortex-containers.git .work/ibm-content-cortex-containers || echo "  (sin acceso a GitHub: se omite)"

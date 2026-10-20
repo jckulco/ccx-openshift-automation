@@ -22,6 +22,9 @@ IBM_DIR="$WORK_DIR/ibm-content-cortex-containers"
 IBM_SCRIPTS="$IBM_DIR/scripts"
 VENV_DIR="$WORK_DIR/venv"
 
+# En algunos bastiones (TechZone) /usr/local/bin no está en el PATH de root: Helm y oc se instalan ahí.
+case ":$PATH:" in *":/usr/local/bin:"*) ;; *) PATH="/usr/local/bin:$PATH"; export PATH ;; esac
+
 mkdir -p "$STATE_DIR" "$DONE_DIR" "$WORK_DIR"
 chmod 700 "$STATE_DIR" 2>/dev/null || true
 
@@ -74,6 +77,23 @@ find_oc() {
   return 1
 }
 oc_() { "$OC" "$@"; }
+
+# apply_retry <args de 'oc apply'>   (no admite '-f -': usa un archivo)
+# El servicio ibm-pg-webhook-service de IBM incluye en su selector a los pods de PostgreSQL (que no escuchan en 9443),
+# así que ~3 de cada 4 intentos fallan con "failed calling webhook ... connection refused". Se reintenta sólo
+# ante ese tipo de errores transitorios; cualquier otro error falla de inmediato.
+apply_retry() {
+  local i out max="${APPLY_RETRIES:-40}" delay="${APPLY_RETRY_DELAY:-3}"
+  for i in $(seq 1 "$max"); do
+    if out="$(oc_ apply "$@" 2>&1)"; then printf '%s\n' "$out"; return 0; fi
+    if printf '%s' "$out" | grep -qiE 'failed calling webhook|connection refused|context deadline exceeded|i/o timeout|no endpoints available'; then
+      [ "$i" -eq 1 ] && warn "webhook no disponible (reintentando hasta $max veces)..."
+      sleep "$delay"; continue
+    fi
+    printf '%s\n' "$out" >&2; return 1
+  done
+  printf '%s\n' "$out" >&2; err "apply agotó $max reintentos"; return 1
+}
 
 apps_domain() { oc_ get ingresses.config/cluster -o jsonpath='{.spec.domain}'; }
 

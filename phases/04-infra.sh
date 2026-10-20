@@ -35,20 +35,22 @@ wait_pg() { # wait_pg <prefijo-pod>
 
 # --- PostgreSQL de contenido ----------------------------------------------------------------------------------
 log "Aplicando PostgreSQL de contenido (ccx-content-pg)"
-sed -e "s/__NS__/$NS/g" -e "s#__BLOCK_SC__#$BLOCK_SC#g" "$ROOT/templates/ccx-content-pg.yaml" | oc_ apply -n "$NS" -f -
+PGTMP="$(mktemp)"; trap 'rm -f "$PGTMP"' EXIT
+sed -e "s/__NS__/$NS/g" -e "s#__BLOCK_SC__#$BLOCK_SC#g" "$ROOT/templates/ccx-content-pg.yaml" > "$PGTMP"
+apply_retry -n "$NS" -f "$PGTMP"
 
 # --- Infraestructura generada por IBM (Model Gateway + WDU) ------------------------------------------------------
 INF="$GEN/infrastructure"
-[ -d "$INF/secrets" ] && oc_ apply -n "$NS" -f "$INF/secrets/"
-[ -f "$INF/ibm_pg_cluster_mg_cr.yaml" ]  && oc_ apply -n "$NS" -f "$INF/ibm_pg_cluster_mg_cr.yaml"
-[ -f "$INF/ibm_redis_cr.yaml" ]          && oc_ apply -n "$NS" -f "$INF/ibm_redis_cr.yaml"
-[ -f "$INF/ibm_pg_cluster_wdu_cr.yaml" ] && oc_ apply -n "$NS" -f "$INF/ibm_pg_cluster_wdu_cr.yaml"
+[ -d "$INF/secrets" ] && apply_retry -n "$NS" -f "$INF/secrets/"
+[ -f "$INF/ibm_pg_cluster_mg_cr.yaml" ]  && apply_retry -n "$NS" -f "$INF/ibm_pg_cluster_mg_cr.yaml"
+[ -f "$INF/ibm_redis_cr.yaml" ]          && apply_retry -n "$NS" -f "$INF/ibm_redis_cr.yaml"
+[ -f "$INF/ibm_pg_cluster_wdu_cr.yaml" ] && apply_retry -n "$NS" -f "$INF/ibm_pg_cluster_wdu_cr.yaml"
 
 wait_pg ccx-content-pg-1
 wait_pg ibm-pg-cluster-mg-1
 wait_pg ccx-wdu-pg-1
 # el pooler de WDU necesita el cluster ya creado
-[ -f "$INF/ibm_pg_pooler_wdu_cr.yaml" ] && oc_ apply -n "$NS" -f "$INF/ibm_pg_pooler_wdu_cr.yaml"
+[ -f "$INF/ibm_pg_pooler_wdu_cr.yaml" ] && apply_retry -n "$NS" -f "$INF/ibm_pg_pooler_wdu_cr.yaml"
 redis_ready() { oc_ get pods -n "$NS" --no-headers 2>/dev/null | grep -i redis | grep -v -i operator | awk '{split($2,a,"/"); if ($3!="Running"||a[1]!=a[2]) bad=1; n++} END{exit !(n>0 && !bad)}'; }
 wait_until "Redis de Model Gateway listo" 600 10 redis_ready
 wait_pg ibm-pg-pooler-wdu

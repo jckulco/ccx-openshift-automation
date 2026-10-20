@@ -98,19 +98,24 @@ fi
 JH="$(dirname "$(dirname "$(readlink -f "$(command -v java)")")")"
 export JAVA_HOME="${JAVA_HOME:-$JH}"
 export JAVA_OPTS="-Djavax.net.ssl.trustStore=$TS -Djavax.net.ssl.trustStorePassword=changeit -Djavax.net.ssl.trustStoreType=PKCS12"
-run_meta() { # run_meta create CE_metadata.xml
+# run_meta <marca> <args de ccx_ai_metadata.sh...>   (cada paso se ejecuta UNA vez: marca en .state/done)
+# El script de IBM devuelve 0 aunque falle, así que se inspecciona la salida. Ojo: los nombres de propiedades que
+# imprime (p. ej. SETTABLE_ONLY_ON_CREATE) no son errores; por eso los códigos E_XXX se buscan como palabra completa.
+run_meta() {
+  local mark="$1"; shift
+  if phase_done "$mark"; then ok "Paso '$*' ya realizado (marca $mark)"; return 0; fi
   local log_file; log_file="$(mktemp)"
   ( cd "$META_DIR" && ./ccx_ai_metadata.sh "$@" ) 2>&1 | tee "$log_file" | mask | tail -40
-  if grep -q -E "Exception|PKIX|FNRCE|E_[A-Z_]+|ERROR" "$log_file" && ! grep -q "already exists" "$log_file"; then
+  if grep -q -E "Exception|PKIX|FNRCE|\bE_[A-Z][A-Z_]{3,}\b|\bERROR\b" "$log_file" && ! grep -q "already exists" "$log_file"; then
     err "La salida contiene errores (ver arriba). El script de IBM devuelve 0 aunque falle."
     rm -f "$log_file"; return 1
   fi
-  rm -f "$log_file"
+  rm -f "$log_file"; mark_done "$mark"
 }
 log "ccx_ai_metadata.sh create CE_metadata.xml"
-run_meta create CE_metadata.xml
+run_meta 07-meta-create create CE_metadata.xml
 log "ccx_ai_metadata.sh insert MessageLoader.xml"
-run_meta insert MessageLoader.xml
+run_meta 07-meta-insert insert MessageLoader.xml
 ok "Metadatos de AI Services creados en el object store '$OBJSTORE'"
 
 # --- 5) plug-in de Navigator -----------------------------------------------------------------------

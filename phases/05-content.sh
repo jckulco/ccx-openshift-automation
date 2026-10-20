@@ -60,10 +60,10 @@ done
 
 # 6) CRs ------------------------------------------------------------------------------------------------------------------------
 log "Aplicando Content CR"
-oc_ apply -n "$NS" -f "$GEN/ibm_content_cr_production.yaml"
+apply_retry -n "$NS" -f "$GEN/ibm_content_cr_production.yaml"
 # El operador de Content no tiene permiso sobre los CRDs de MG/WDU/AI Services -> se aplican desde aquí.
 log "Aplicando Model Gateway y WDU CR"
-oc_ apply -n "$NS" -f "$GEN/ibm_model_gateway_cr_production.yaml" -f "$GEN/ibm_wdu_cr_production.yaml"
+apply_retry -n "$NS" -f "$GEN/ibm_model_gateway_cr_production.yaml" -f "$GEN/ibm_wdu_cr_production.yaml"
 
 # 7) esperar a Content ----------------------------------------------------------------------------------------------------------
 content_ready() {

@@ -38,8 +38,17 @@ if ! command -v helm >/dev/null 2>&1 || [ "$(helm_major || echo 0)" -lt 4 ]; the
   tar -xzf "$T/helm.tgz" -C "$T"
   $SUDO install -m 0755 "$T/linux-amd64/helm" /usr/local/bin/helm
   rm -rf "$T"
+  hash -r
 fi
-ok "helm $(helm version --template '{{.Version}}')"
+command -v helm >/dev/null 2>&1 || die "Helm no quedó en el PATH (PATH=$PATH). Revisa /usr/local/bin/helm."
+HV="$(helm version --template '{{.Version}}' 2>&1)" || die "helm no funciona: $HV"
+[ "$(helm_major || echo 0)" -ge 4 ] || die "Se requiere Helm 4+, encontré: $HV"
+ok "helm $HV"
+
+# oc en el PATH (algunos bastiones lo traen como /opt/oc.rhel9): los scripts de IBM y el usuario lo agradecen
+if ! command -v oc >/dev/null 2>&1; then
+  $SUDO ln -sf "$OC" /usr/local/bin/oc && ok "Enlace /usr/local/bin/oc -> $OC" || warn "No pude crear /usr/local/bin/oc (no es crítico)"
+fi
 
 # --- repo de IBM -----------------------------------------------------------------------------------------
 if [ ! -d "$IBM_DIR/.git" ]; then
