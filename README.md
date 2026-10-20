@@ -5,12 +5,12 @@ IBM Content Cortex v26.0.1 Premium que se montó y verificó de punta a punta en
 (OpenShift 4.21, ODF): **Content Platform Engine, Navigator, GraphQL, Content Search, Task Manager,
 AI Services (Reasoning Service, MCP, agente de Navigator), Enhanced Extraction (WDU) y Model Gateway con watsonx.ai**.
 
-> ⚠️ **Estado de verificación.** Cada comando de este repo proviene de pasos que funcionaron en la sesión de
-> referencia, pero **el orquestador completo (`install.sh`) aún no se ha ejecutado de extremo a extremo contra un cluster**.
-> Lo que sí está probado offline: sintaxis, ShellCheck, `toml_set`/`fill-properties` con archivos sintéticos, y que las
-> plantillas del modo `--silent` de IBM pasan los validadores pydantic de IBM. Detalle en
-> [`docs/VERIFICATION-STATUS.md`](docs/VERIFICATION-STATUS.md). Espera ajustar algún detalle en la primera ejecución;
-> todas las fases son idempotentes y retoman donde quedaron.
+> ✅ **Estado de verificación.** `install.sh` se ejecutó de extremo a extremo (fases 00 → 08) en un cluster de TechZone
+> (OpenShift 4.21.24, ODF, 3 masters + 5 workers de 32 vCPU / 128 GB) y, tras los pasos manuales, Navigator, ACCE y el agente
+> de IA funcionaron. En esa primera ejecución hubo que corregir cuatro detalles (PATH de Helm, webhook de PostgreSQL,
+> falso positivo de la fase 07, errores ocultos), ya incorporados. Detalle en [`docs/VERIFICATION-STATUS.md`](docs/VERIFICATION-STATUS.md).
+> Todas las fases son idempotentes y retoman donde quedaron. Una sola ejecución no es una garantía: si algo falla en tu
+> cluster, mira [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md).
 
 ## Lo único que tienes que escribir
 

@@ -24,7 +24,15 @@ Leyenda: ✅ ejecutado y funcionando en la sesión de referencia (manualmente) �
 - Fases 05 (Content Ready), 06 (Model Gateway + AI Services, Reasoning Service listo) y 07 (metadatos + JAR en Navigator) ✅ en esa misma ejecución.
 - Fase 07: falso positivo del detector de errores (`SETTABLE_ONLY_ON_CREATE` coincidía con `E_[A-Z_]+`); corregido y con marcas por paso (TROUBLESHOOTING #23).
 - Observado en la tabla de la fase 08: rutas con 404 en `/` (normal), `model-gateway` 503 (ruta externa, ver #5) y `legal-hold-mcp-server-route` 503 (sin investigar).
-- Pendiente de verificar tras esta ejecución: pasos manuales (ACCE, plug-in/layout de Navigator) y prueba funcional del agente.
+- Pasos manuales (add-on de texto persistente en ACCE, plug-in y layout *Ask AI agents* en Navigator) y prueba funcional ✅ confirmados por el usuario.
+- Sin investigar: 503 de `legal-hold-mcp-server-route` (no afectó al resto). Revisar `oc get pods -n ibm-content | grep -i legal` y los logs si se necesita ese MCP.
+- Una sola ejecución en un solo cluster: no hay datos de repetibilidad ni de otras versiones de OCP.
+
+## Dimensionamiento observado
+Referencia usada: 5 workers de 32 vCPU / 128 GB (ODF). Es una configuración **holgada**: no se midió el consumo real.
+Tras una instalación, ejecuta `oc adm top nodes` y `oc describe nodes | grep -A8 "Allocated resources"` y anota aquí los valores
+para ajustar (p. ej. probar con 4 workers del mismo tamaño; 3 workers no se recomiendan con ODF).
+- Medición: _pendiente_
 
 ## Cómo cerrar los ⚠️
 Ejecuta en un cluster **desechable** de TechZone y anota en un issue cada fase que necesite ajuste. Orden de riesgo (de mayor a menor):

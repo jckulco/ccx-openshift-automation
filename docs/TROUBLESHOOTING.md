@@ -27,6 +27,7 @@ Antes de nada: `tools/status.sh` (muestra también pods `0/1 Running`, que `grep
 | 21 | Fase 01: `helm: command not found` aunque se acaba de instalar | `/usr/local/bin` no está en el PATH de root (bastiones TechZone) | `lib/common.sh` lo añade al PATH; la fase 01 verifica Helm y enlaza `oc` en `/usr/local/bin` |
 | 22 | `failed calling webhook "vpooler.pg.ibm.com" ... connection refused` | El selector de `ibm-pg-webhook-service` incluye también los pods de PostgreSQL (no escuchan en 9443): sólo 1 de N endpoints es el operador | `apply_retry` (lib/common.sh) reintenta ante ese error. A mano: repetir el `oc apply` en bucle. Posible defecto del chart de IBM de PG |
 | 23 | Fase 07: "La salida contiene errores" aunque `CEMetadataCreator` terminó bien | El detector buscaba `E_[A-Z_]+` y coincidía con `SETTABLE_ONLY_ON_CREATE` | Corregido (palabra completa) y cada paso (`create`/`insert`) deja marca `07-meta-*` para no repetirse. Si ya corrió: `echo ok > .state/done/07-meta-create` |
+| 24 | `legal-hold-mcp-server-route` responde 503 en la tabla de la fase 08 | Sin investigar (no afectó a Navigator, CPE ni al agente) | `oc get pods -n ibm-content \| grep -i legal` y `oc logs` del pod; probablemente irrelevante si no usas ese servidor MCP |
 
 ## Diagnóstico útil
 ```bash

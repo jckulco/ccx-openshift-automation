@@ -1,7 +1,7 @@
 # Prerrequisitos
 
 ## Cluster
-- Red Hat OpenShift **4.12+**, amd64, `cluster-admin`. Referencia: 4.21.24, 3 masters + 5 workers (~31 vCPU / 120 GiB c/u; el uso real fue bajo).
+- Red Hat OpenShift **4.12+**, amd64, `cluster-admin`. Referencia: 4.21.24, 3 masters + 5 workers (~31 vCPU / 120 GiB c/u; el uso real fue bajo, sin medir; ver "Dimensionamiento observado" en VERIFICATION-STATUS).
 - Almacenamiento: una clase **RWX** (CephFS: `ocs-storagecluster-cephfs`) y una **RWO** de bloque (`ocs-storagecluster-ceph-rbd`).
 - Salida a Internet hacia `cp.icr.io`, `icr.io`, `quay.io`, `docker.io`, `github.com`, `get.helm.sh`, `pypi.org`, `iam.cloud.ibm.com` y la región de watsonx.ai.
 
