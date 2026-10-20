@@ -1,0 +1,17 @@
+{
+  "": {
+    "LICENSE_ACCEPT": true,
+    "LICENSE_TYPE": "Premium",
+    "NAMESPACE": "@NS@",
+    "ENTITLEMENT_KEY": "@ENTITLEMENT_KEY@",
+    "PRIVATE_REGISTRY": false,
+    "DEPLOY_ENHANCED_EXTRACTION": true,
+    "DEPLOY_MODEL_GATEWAY": true,
+    "USE_IBM_CNPG_MODEL_GATEWAY": true,
+    "USE_IBM_CNPG_WDU": true,
+    "USE_IBM_REDIS": true,
+    "PARALLEL_DEPLOYMENT": true,
+    "MAX_PARALLEL_WORKERS": 3,
+    "DEPLOYMENT_TIMEOUT": 900
+  }
+}

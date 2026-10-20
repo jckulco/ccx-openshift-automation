@@ -1,0 +1,40 @@
+{
+  "": {
+    "NAMESPACE": "@NS@",
+    "LICENSE": "@LICENSE_METRIC@",
+    "PLATFORM": "OCP",
+    "AUTHENTICATION": 2,
+    "GENERATE_NETWORK_POLICIES": false,
+    "FIPS_SUPPORT": false,
+    "SECRET_MANAGEMENT": "kubernetes",
+    "CPE": true,
+    "GRAPHQL": true,
+    "BAN": true,
+    "CSS": true,
+    "TM": true,
+    "ES": false,
+    "IER": false,
+    "ICCSAP": false,
+    "CCXMO": false,
+    "DEPLOY_ENHANCED_EXTRACTION": true,
+    "DEPLOY_MODEL_GATEWAY": true,
+    "DATABASE_TYPE": 4,
+    "DATABASE_SSL_ENABLE": false,
+    "DATABASE_OBJECT_STORE_COUNT": 1,
+    "SENDMAIL_SUPPORT": false,
+    "ICC_SUPPORT": false,
+    "TM_CUSTOM_GROUP_SUPPORT": false,
+    "CONTENT_INIT": true,
+    "CONTENT_VERIFY": true
+  },
+  "LDAP": {"LDAP_TYPE": 2, "LDAP_SSL_ENABLE": false},
+  "IDP": {"DISCOVERY_ENABLED": true, "DISCOVERY_URL": "@IDP_DISCOVERY_URL@"},
+  "MODEL_GATEWAY": {
+    "USE_IBM_CNPG": true, "USE_IBM_REDIS": true,
+    "BLOCK_STORAGE_CLASSNAME": "@BLOCK_SC@", "CNPG_INSTANCES": 1, "CNPG_STORAGE_SIZE": "10Gi"
+  },
+  "WDU": {
+    "USE_IBM_CNPG": true, "BLOCK_STORAGE_CLASSNAME": "@BLOCK_SC@",
+    "CNPG_INSTANCES": 1, "CNPG_STORAGE_SIZE": "10Gi", "ENABLE_WXAI": true
+  }
+}

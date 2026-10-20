@@ -1,0 +1,12 @@
+# Secretos y estado local: NUNCA subir a Git
+.state/
+.work/
+*.env
+!config/*.example
+*.pem
+*.p12
+*.jks
+*.log
+ICCXAIST*.zip
+*.bak.yaml
+gcddb-backup-*.sql

@@ -1,0 +1,39 @@
+## PostgreSQL de Content Cortex (CPE: GCD + object store, y Navigator) - LABORATORIO.
+## Plantilla: __NS__ y __BLOCK_SC__ los sustituye phases/04-infra.sh.
+## Basada en el CR que genera prerequisites.py para WDU (ibm_pg_cluster_wdu_cr.yaml).
+##  - servicio de lectura/escritura: ccx-content-pg-rw
+##  - FileNet usa datasources XA (FNGCDDSXA, FNOS1DSXA) => max_prepared_transactions > 0 (por defecto 0)
+##  - max_connections 300 (valor validado en la sesión de referencia)
+apiVersion: pg.ibm.com/v1
+kind: Cluster
+metadata:
+  name: ccx-content-pg
+  namespace: __NS__
+  labels:
+    app.kubernetes.io/name: ibm-pg-operator
+    component-id: ibm-pg-operator
+spec:
+  instances: 1
+
+  imageCatalogRef:
+    apiGroup: pg.ibm.com
+    kind: ImageCatalog
+    name: ibm-pg-operator-operand-image-catalog
+    major: 17
+
+  imagePullSecrets:
+  - name: ibm-entitlement-key
+
+  postgresql:
+    parameters:
+      max_connections: "300"
+      max_prepared_transactions: "300"
+
+  bootstrap:
+    initdb:
+      database: app
+      owner: app
+
+  storage:
+    size: '20Gi'
+    storageClass: '__BLOCK_SC__'

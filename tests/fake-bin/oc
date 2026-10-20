@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# oc falso para pruebas offline de la fase 00
+case "$*" in
+  "whoami") echo "kube:admin" ;;
+  "whoami --show-server") echo "https://api.example:6443" ;;
+  auth\ can-i*) echo yes ;;
+  get\ clusterversion*) echo "4.21.24" ;;
+  get\ sc\ -o*) echo "ocs-storagecluster-ceph-rbd" ;;
+  get\ sc\ *) echo ok ;;
+  get\ ingresses.config/cluster*) echo "apps.example.com" ;;
+  *) echo "fake oc: $*" >&2; exit 1 ;;
+esac
