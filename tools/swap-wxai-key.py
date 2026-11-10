@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Sustituye la API key de watsonx.ai en el secreto de WDU y en ccx-wdu.toml.
+"""Sustituye la API key (y el space) de watsonx.ai en el secreto de WDU y en ccx-wdu.toml.
+
+Actualiza también los campos *space_id del secreto y las líneas WXAI_*_SPACE_ID del TOML con WXAI_SPACE_ID de
+.state/config.env (hallazgo de la sesión: al cambiar de cuenta de watsonx.ai hay que cambiar clave Y space).
 
 Antes de tocar nada, comprueba que la clave NUEVA puede acceder a tu space/project.
 La clave se pide por teclado (no se muestra) y nunca se imprime ni se pasa como argumento.
@@ -103,6 +106,9 @@ def walk(node, path=""):
             elif re.search(r"api[_-]?key", str(k), re.I):
                 node[k] = new
                 changed.append(p)
+            elif re.search(r"space[_-]?id", str(k), re.I) and isinstance(node[k], str):
+                node[k] = SPACE
+                changed.append(p)
     elif isinstance(node, list):
         for i, v in enumerate(node):
             walk(v, path + "[%d]" % i)
@@ -126,4 +132,9 @@ txt = open(TOML).read()
 txt2, n = re.subn(r'^(WXAI_API_KEY\s*=\s*)("""|")?.*$', lambda m: m.group(1) + '"' + new + '"',
                   txt, flags=re.M)
 open(TOML, "w").write(txt2)
-print("ccx-wdu.toml: %d línea(s) actualizada(s)" % n)
+# Los *_SPACE_ID (imagen, KVP, KVP semántico) usan comillas triples: se conserva el estilo de cada línea
+txt3, n2 = re.subn(r'^(WXAI_\w*SPACE_ID\s*=\s*)("""|")?[^"\n]*("""|")?\s*$',
+                   lambda m: m.group(1) + (m.group(2) or '"') + SPACE + (m.group(2) or '"'), txt2, flags=re.M)
+open(TOML, "w").write(txt3)
+print("ccx-wdu.toml: %d línea(s) de clave y %d de space actualizadas" % (n, n2))
+print("Reinicia los deployments wdu-* para que lean el secreto:  for d in $(oc get deploy -n %s -o name | grep wdu-); do oc rollout restart $d -n %s; done" % (NS, NS))

@@ -25,6 +25,14 @@ El producto "26.0.1" se instala con los **charts 26.1.0** (los charts "26.0.1" s
  └───────────────────────────────────────────────────────────────────────────────────────────────┘
  ns ibm-licensing: License Service (instalado a mano, ver TROUBLESHOOTING #2)
 ```
+
+### Content Assistant (fase 08, ICACMS 1.0.4)
+```
+ Navigator (plug-in genaiPlugin.jar) ─► CPE (add-on Gen AI Extensions: event actions) ─► Content Assistant `cas` (CASCluster casdeploy, Route `cas`)
+                                                                      │ ├─► Model Gateway (Route con destinationCA) ─► watsonx.ai: LLM Llama 3.3 70B + embeddings e5-large
+                                                                      │ └─► OpenSearch 3.6.0 (Helm comunitario, 1 nodo, TLS propio) · índices ibm-genai-*
+ ibmca (CLI) ─► login contra OpenSearch (genai-service-user) · configura proveedores de IA y dominios
+```
 Rutas: `cpe-`, `cpe-stless-`, `graphql-`, `navigator-`, `tm-`, `model-gateway-`, `reasoning-service-` + `<ns>.<dominio-apps>`; `keycloak-ibm-auth.<dominio>`.
 Las rutas de CPE/Navigator usan la CA interna del operador ("content ICP4A Root CA"); la de Keycloak, el certificado del router.
 
@@ -46,3 +54,14 @@ Las rutas de CPE/Navigator usan la CA interna del operador ("content ICP4A Root 
 ## Producción
 Sustituye lo "de laboratorio": LDAP/IdP corporativos (omite la fase 02 y rellena `content_ldap_server.toml` / `ccx-identity_provider.toml`), PostgreSQL con 3 instancias
 y backups, Redis con HA, TLS en LDAP/BD, `SECRET_MANAGEMENT=vault`, Keycloak con base de datos real, NetworkPolicies, y revisar tamaños.
+
+## Content Assistant: decisiones (fase 08)
+| Decisión | Motivo |
+|---|---|
+| OpenSearch con el **chart comunitario 3.6.0** (1 nodo), en 2 etapas (demo → TLS propio) | Content Assistant exige OpenSearch ≥ 3.5.0; el operador de IBM para OpenSearch sólo existe con CP4BA. Es el orden verificado: con `DISABLE_INSTALL_DEMO_CONFIG` desde el inicio no se probó. |
+| CA propia con extensiones estrictas y SAN | El conector usa Python 3.13 (verificación estricta). Los certificados de demo no tienen SAN del Service. |
+| `genai-service-user` + roles `ibm-genai-*` creados por API | Es lo que hace el job de IBM (sólo CP4BA); `ibmca login` valida contra OpenSearch. |
+| Proveedor **`modelgateway_openai`** por defecto, LLM **Llama 3.3 70B**, embeddings **e5-large** | `gpt-oss-120b` agota los tokens de salida razonando ("maxOutputTokens too low"); `watsonxprod` no tiene clave. Los umbrales kNN/ANN son los que IBM publica para e5 en `watsonxprod`. |
+| Reasoning Service de Navigator se queda con **gpt-oss-120b** | Con Llama 3.3 el agente rechazaba casi todas las preguntas. |
+| `validate` de IBM no se usa | El bastión no resuelve `*.svc`; se valida con TLS dentro del pod y se aplica con `oc`. |
+| Activación en ACCE, suscripción de indexación y plug-in: manuales | Sin API verificada; los pasos están en MANUAL-STEPS §6-§7b. |

@@ -3,12 +3,14 @@
 Repositorio para **recrear, en minutos de trabajo propio y ~1–2 h de espera**, el ambiente de referencia de
 IBM Content Cortex v26.0.1 Premium que se montó y verificó de punta a punta en un cluster de TechZone
 (OpenShift 4.21, ODF): **Content Platform Engine, Navigator, GraphQL, Content Search, Task Manager,
-AI Services (Reasoning Service, MCP, agente de Navigator), Enhanced Extraction (WDU) y Model Gateway con watsonx.ai**.
+AI Services (Reasoning Service, MCP, agente de Navigator), Enhanced Extraction (WDU), Model Gateway con watsonx.ai y
+**IBM Content Assistant 1.0.4 (OpenSearch + CASCluster + proveedores de IA)**.
 
-> ✅ **Estado de verificación.** `install.sh` se ejecutó de extremo a extremo (fases 00 → 08) en un cluster de TechZone
+> ✅ **Estado de verificación.** `install.sh` se ejecutó de extremo a extremo (fases 00 → 07 y 09; la fase 08 de Content Assistant se añadió después) en un cluster de TechZone
 > (OpenShift 4.21.24, ODF, 3 masters + 5 workers de 32 vCPU / 128 GB) y, tras los pasos manuales, Navigator, ACCE y el agente
 > de IA funcionaron. En esa primera ejecución hubo que corregir cuatro detalles (PATH de Helm, webhook de PostgreSQL,
 > falso positivo de la fase 07, errores ocultos), ya incorporados. Detalle en [`docs/VERIFICATION-STATUS.md`](docs/VERIFICATION-STATUS.md).
+> ⚠️ **La fase 08 (Content Assistant) automatiza pasos que se hicieron a mano y se verificaron en el mismo cluster, pero el script en sí aún no se ha ejecutado de punta a punta**; ver la tabla de [VERIFICATION-STATUS](docs/VERIFICATION-STATUS.md).
 > Todas las fases son idempotentes y retoman donde quedaron. Una sola ejecución no es una garantía: si algo falla en tu
 > cluster, mira [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md).
 
@@ -21,7 +23,7 @@ AI Services (Reasoning Service, MCP, agente de Navigator), Enhanced Extraction (
 | **URL/región de watsonx.ai** | p. ej. `https://us-south.ml.cloud.ibm.com` |
 | **Space ID** del deployment space | watsonx.ai → Deployments → tu space → Manage → *Space GUID* |
 | **Model ID** | p. ej. `openai/gpt-oss-120b` |
-| **Aceptar la licencia de IBM** | tú decides; el instalador nunca la acepta por su cuenta |
+| **Aceptar las licencias de IBM** (Content Cortex y, en la fase 08, Content Assistant) | tú decides; el instalador nunca las acepta por su cuenta |
 
 Todo lo demás (namespaces, contraseñas, LDAP, Keycloak, bases de datos, certificados, CRs, tenant del Model Gateway…) se
 decide y se genera automáticamente. Las claves se piden sin eco, se guardan en `.state/` con permisos `600` y **nunca**
@@ -35,7 +37,7 @@ git clone https://github.com/<tu-usuario>/ccx-openshift-automation.git
 cd ccx-openshift-automation
 oc login --token=... --server=https://api....:6443
 
-./install.sh                 # pregunta lo anterior y ejecuta las fases 00 → 08
+./install.sh                 # pregunta lo anterior y ejecuta las fases 00 → 09
 ```
 
 Sin preguntas (CI / repetición): copia `config/config.env.example` a `config/config.env`, rellénalo y ejecuta
@@ -51,9 +53,10 @@ Sin preguntas (CI / repetición): copia `config/config.env.example` a `config/co
 | 03 | `operators` | `deploy_operator.py --silent` (7 operadores) + License Service manual | 5 min |
 | 04 | `infra` | `prerequisites.py --silent gather`; PostgreSQL de contenido, PG+Redis de Model Gateway, PG+pooler de WDU | 10 min |
 | 05 | `content` | Rellena property files, `generate`, crea BD (una vez), secretos/CRs, espera a Content `Ready`, aplica MG y WDU | 30–60 min |
-| 06 | `model-gateway` | Port-forward, tenant `ccx`, proveedor watsonx, modelo, `patch-secret`, AI Services CR | 10 min |
+| 06 | `model-gateway` | Port-forward, tenant `ccx`, proveedor watsonx, modelos (gpt-oss, Llama 3.3, e5), corrige la ruta externa, `patch-secret`, AI Services CR | 10 min |
 | 07 | `ai-package` | Metadatos de AI Services en CPE + copia del plug-in a Navigator. **Requiere descarga manual del paquete** | 5 min |
-| 08 | `finish` | URLs, comprobaciones HTTP y checklist de pasos manuales | 1 min |
+| 08 | `content-assistant` | OpenSearch 3.6.0 + TLS propio, usuario `genai-service-user`, operador y `CASCluster`, ruta/modelos del gateway, CLI `ibmca` (LLM Llama 3.3 + embeddings e5). ⚠️ ver [VERIFICATION-STATUS](docs/VERIFICATION-STATUS.md) | 15–25 min |
+| 09 | `finish` | URLs, comprobaciones HTTP y checklist de pasos manuales | 1 min |
 
 ```bash
 ./install.sh status                  # fases hechas y pods con problemas
@@ -61,6 +64,8 @@ Sin preguntas (CI / repetición): copia `config/config.env.example` a `config/co
 ./install.sh --from 05               # retomar desde una fase
 ./install.sh --only 07               # una sola fase
 CCX_AI_PACKAGE=/ruta/ICCXAIST_26.0.1_ML.zip ./install.sh --only 07
+CCX_ICA_PACKAGE=/ruta/ICACMS_1.0.4_ML.zip ./install.sh --only 08   # Content Assistant (sólo la CLI ibmca es descarga manual)
+tools/vector-index-check.sh          # fragmentos indexados en OpenSearch y log del conector
 ./install.sh credentials             # contraseñas de ccxadmin/alice/bob (explícito)
 tools/status.sh                      # CRs, pods no listos (incluye 0/1 Running), rutas
 ./uninstall.sh [--local]             # eliminar todo (destructivo, pide confirmación)
@@ -73,16 +78,18 @@ bash tests/run-tests.sh              # pruebas offline
 2. **ACCE**: instalar el add-on *5.6.0 Persistent Text Extract Extensions* y activar *Persistent Text Extracts* en la clase `Document`.
 3. **Navigator (admin)**: *Upload File Path*, registrar el plug-in *IBM Content Cortex AI Agents*, habilitar el layout *Ask AI agents*.
 4. **IBM Cloud**: plan de pago de watsonx.ai y Service ID como colaborador del deployment space.
+5. **Content Assistant** (ACCE/Navigator): add-on *26.0.0 Gen AI Extensions*, *Activate* con la URL de la ruta `cas`, suscripción `Document-Vector Index` y plug-in `genaiPlugin.jar` (MANUAL-STEPS §5–§7b). Sólo se indexan documentos **nuevos**.
 
 ## Estructura
 
 ```
 install.sh · uninstall.sh          orquestador
-phases/00..08-*.sh                 fases idempotentes (marcas en .state/done)
+phases/00..09-*.sh                 fases idempotentes (marcas en .state/done)
 lib/common.sh                      utilidades (prompts, espera, estado, enmascarado)
 tools/                             deploy-auth.sh, setup-keycloak.py, fix-ldap-guid.sh, load-content-db.sh,
                                    fill-properties.py, toml_set.py, mgw.py, mg-admin-token.py, ai-metadata.sh,
-                                   test-wxai-key.py, swap-wxai-key.py, reset-gcd.sh, status.sh
+                                   test-wxai-key.py, swap-wxai-key.py, reset-gcd.sh, status.sh,
+                                   gen-opensearch-certs.sh, os-api.sh, cas-fill-properties.py, cas-providers.py, vector-index-check.sh
 templates/                         CR de PostgreSQL de contenido + especificaciones de los TOML silent de IBM
 docs/                              PREREQUISITES · ARCHITECTURE · MANUAL-STEPS · TROUBLESHOOTING · SECURITY ·
                                    VERIFICATION-STATUS · SESSION-NOTES

@@ -12,13 +12,13 @@
 #   ./install.sh --yes | --non-interactive   sin preguntas (ver README: variables CCX_*)
 #
 # Fases:  00 configure | 01 bootstrap | 02 auth | 03 operators | 04 infra | 05 content | 06 model-gateway |
-#         07 ai-package (manual: descarga) | 08 finish
+#         07 ai-package (manual: descarga) | 08 content-assistant | 09 finish
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=lib/common.sh
 source "$ROOT/lib/common.sh"
 
-PHASES=(00-configure 01-bootstrap 02-auth 03-operators 04-infra 05-content 06-model-gateway 07-ai-package 08-finish)
+PHASES=(00-configure 01-bootstrap 02-auth 03-operators 04-infra 05-content 06-model-gateway 07-ai-package 08-content-assistant 09-finish)
 FROM=""; ONLY=""; FORCE=0; CMD="all"; RECONF=0
 
 usage() { sed -n "2,15p" "$0" | sed 's/^# \{0,1\}//'; }
@@ -60,7 +60,7 @@ fi
 
 run_phase() {
   local p="$1" rc=0
-  if [ "$FORCE" = 0 ] && phase_done "$p" && [ "$p" != 08-finish ]; then
+  if [ "$FORCE" = 0 ] && phase_done "$p" && [ "$p" != 09-finish ]; then
     ok "Fase $p ya completada (usa --force para repetirla)"; return 0
   fi
   bash "$ROOT/phases/$p.sh" || rc=$?
@@ -76,5 +76,5 @@ for p in "${PHASES[@]}"; do
   rc=0; run_phase "$p" || rc=$?
   [ "$rc" -eq 10 ] && PENDING=1
 done
-[ "$PENDING" = 1 ] && warn "Instalación casi completa: falta el paquete de AI Services (fase 07)."
+[ "$PENDING" = 1 ] && warn "Instalación casi completa: falta algún paquete de descarga manual (fase 07: AI Services; fase 08: ICACMS/ibmca)."
 exit 0

@@ -10,3 +10,9 @@
 - OpenLDAP/Keycloak son de **laboratorio**: SCC `anyuid` sólo para la SA `openldap`, Keycloak `start-dev`, sin TLS interno.
 - Rota la API key de watsonx.ai y la entitlement key al terminar una demo. El Model Gateway usa la API key de watsonx.ai (ahora en el secreto del proveedor).
 - El Usage Metering envía datos de uso a IBM Software Central si aceptas la licencia en modo conectado (`softwareCentral.enable: true`).
+- **Content Assistant (fase 08)**: `OS_ADMIN_PASSWORD` y `GENAI_SERVICE_USER_PASSWORD` se guardan en `.state/ccx-content-secrets.env` (600); las llaves privadas
+  de OpenSearch (`.state/os-certs/ca.key`, `tls.key`) están en `.state` (borra `ca.key` al terminar). `silent_install_deployoperator.toml` y `silent_install_prerequisites.toml`
+  del repo de IBM se restauran al terminar; `propertyFile/<ns>/cas_*.toml` y `generatedFiles/<ns>/` conservan contraseñas y la API key del tenant (600) → bórralos.
+- `ibmca login -p` expone la contraseña de `genai-service-user` en `ps` mientras corre (limitación de la CLI); el host es de laboratorio.
+- Content Assistant se conecta a OpenSearch como `admin` (como en la referencia). Lo recomendable es `genai-service-user` (permisos sólo sobre `ibm-genai-*`): cámbialo en `cas_vector_database.toml` y regenera.
+- OpenSearch queda con los **usuarios de demostración** del índice de seguridad (p. ej. `kibanaserver`) con contraseñas por defecto; el servicio es `ClusterIP` (sin Route). No apto para producción.

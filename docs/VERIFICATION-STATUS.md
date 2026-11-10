@@ -17,6 +17,15 @@ Leyenda: ✅ ejecutado y funcionando en la sesión de referencia (manualmente) �
 | Paquete de AI Services: metadatos + truststore + JAR en `/opt/ibm/plugins` | ✅ | Automatizado en `ai-metadata.sh` ⚠️ (el truststore se hacía a mano con la cadena de la ruta de CPE) |
 | Registro del plug-in, add-on de texto persistente | ✅ (manual) | Sin automatizar a propósito |
 | Esperas (`wait_until`, nombres de pods `ccx-content-pg-1`, `ibm-pg-cluster-mg-1`, `ccx-wdu-pg-1`, `ibm-pg-pooler-wdu-*`, `ibm-reasoning-service-deploy`, detección de Redis/Model Gateway por nombre) | ⚠️ | Nombres tomados de salidas de la sesión; si alguno difiere, la fase falla con tiempo agotado y se corrige el prefijo en el script |
+| **Content Assistant** — OpenSearch 3.6.0 (Helm) + TLS propio (`gen-opensearch-certs.sh`) | ✅ (manual) / ⚠️ (script) | Cada comando se ejecutó a mano en la sesión 2 (demo → upgrade con certificados). El script `08-content-assistant.sh` **nunca se ejecutó de punta a punta** |
+| `genai-service-user` + roles `ibm-genai-*` por API | ✅ (manual) | Mismas definiciones del job de IBM; 5 `PUT` → `CREATED` |
+| `deploy_operator.py --silent` / `prerequisites.py --silent gather|generate` de Content Assistant | ⚠️ | En la sesión fueron **interactivos**. Las plantillas se aplicaron 🧪 con `toml_set.py` sobre los TOML silent reales del repo de IBM (todas las claves existen); no se ejecutó el modo silent; `MODELGATEWAY_SSL_ENABLED` viene comentada (la fase la descomenta) |
+| Aplicación de `generatedFiles/<ns>/{secrets,ssl,configmaps,metrics}` + CR `casdeploy` con `oc` | ⚠️ | En la sesión se aplicó con `validate --apply` (secretos, ConfigMap, métricas y CR sin errores). Aquí se aplica directo: nombres de carpetas tomados del README que genera IBM |
+| Ruta `model-gateway`: `destinationCACertificate` + timeout 300s (fase 06) | ✅ (manual) / ⚠️ (script) | Verificado que persiste; el cert se extrae aquí del port-forward (en la sesión, con `openssl s_client`) |
+| Modelos extra en el gateway (Llama 3.3 70B, e5-large) y `cas-providers.py` | ✅ (manual) / ⚠️ (script) | La edición del JSON del proveedor se hizo a mano con `ibmca update ai-providers` |
+| Add-on Gen AI Extensions, activación en ACCE, suscripción `Document-Vector Index`, plug-in en Navigator | ✅ (manual) | Sin automatizar |
+| Indexación vectorial de extremo a extremo (subir doc → chunks en OpenSearch → respuesta del agente) | ✅ | Observada con documentos **nuevos**; el *sweep* de documentos existentes **no** se probó |
+| WDU (extracción) con clave y space nuevos | ⚠️ | Secreto y `ccx-wdu.toml` actualizados y `wdu-ai` lista modelos con el space nuevo; **ninguna extracción se ejecutó** (se desconoce el disparador en Content Cortex) |
 | Sintaxis bash, ShellCheck, `py_compile`, `toml_set`, fase 00 con `oc` falso | 🧪 | `bash tests/run-tests.sh` |
 
 ## Primera ejecución real (TechZone, OCP 4.21.24, 5 workers 32 vCPU/128 GB, ODF)
@@ -27,6 +36,13 @@ Leyenda: ✅ ejecutado y funcionando en la sesión de referencia (manualmente) �
 - Pasos manuales (add-on de texto persistente en ACCE, plug-in y layout *Ask AI agents* en Navigator) y prueba funcional ✅ confirmados por el usuario.
 - Sin investigar: 503 de `legal-hold-mcp-server-route` (no afectó al resto). Revisar `oc get pods -n ibm-content | grep -i legal` y los logs si se necesita ese MCP.
 - Una sola ejecución en un solo cluster: no hay datos de repetibilidad ni de otras versiones de OCP.
+
+## Segunda sesión (Content Assistant, TechZone OCP 4.21)
+- OpenSearch, operador y CASCluster, `genai-service-user`, proveedor/LLM/embeddings, ruta del gateway, add-on, activación, plug-in y suscripción ✅ (manual, mismo cluster).
+- Hallazgos que cambiaron el diseño: CA estricta para el conector (#27), `ibmca login` valida contra OpenSearch (#29), LLM no razonador para Content Assistant (#30),
+  ruta del gateway con destinationCA (#25), clave+space de WDU (#26).
+- **Sin resolver / sin confirmar**: error intermitente "network connectivity issue" del agente (#32), rechazos de gpt-oss con identificadores personales (#33),
+  procedimiento del *sweep job* para documentos existentes (#31), extracción de WDU de punta a punta, usuarios de demo de OpenSearch con contraseña por defecto.
 
 ## Dimensionamiento observado
 Referencia usada: 5 workers de 32 vCPU / 128 GB (ODF). Es una configuración **holgada**: no se midió el consumo real.

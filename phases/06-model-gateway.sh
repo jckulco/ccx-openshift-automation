@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Fase 06: Model Gateway (tenant + proveedor watsonx.ai + modelo) -> patch-secret -> AI Services CR.
-#   La ruta externa del Model Gateway devolvía 503 en la sesión de referencia, así que se administra con
-#   'oc port-forward' (https://localhost:8443) usando el CLI oficial scripts/model-gateway.py.
+#   Se administra con 'oc port-forward' (https://localhost:8443) usando el CLI oficial scripts/model-gateway.py.
+#   Además corrige la ruta externa (503 de fábrica): destinationCACertificate + timeout 300s (TROUBLESHOOTING #5/#25),
+#   y registra los modelos extra que usa Content Assistant (LLM no-razonador y embeddings) en el mismo proveedor.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=../lib/common.sh
@@ -67,6 +68,26 @@ else
   PUUID="$(python3 -c 'import json; st=json.load(open(".mgw/state.json")); print(st["providers"]["'"$MG_PROVIDER"'"]["uuid"])')"
   log "Registrando modelo $WXAI_MODEL_ID"
   "${MGX[@]}" model add "$PUUID" "$WXAI_MODEL_ID" | tail -3
+fi
+
+# --- modelos extra (idempotente): el del Reasoning Service, el LLM de Content Assistant y los embeddings ------------
+CAS_LLM_MODEL="${CAS_LLM_MODEL:-meta-llama/llama-3-3-70b-instruct}"; CAS_EMBED_MODEL="${CAS_EMBED_MODEL:-intfloat/multilingual-e5-large}"
+PUUID="$(python3 -c 'import json; st=json.load(open(".mgw/state.json")); print(st["providers"]["'"$MG_PROVIDER"'"]["uuid"])')"
+MODELS_NOW="$("${MGW[@]}" model list-all 2>/dev/null || true)"
+for m in "$WXAI_MODEL_ID" "$CAS_LLM_MODEL" "$CAS_EMBED_MODEL"; do
+  if grep -qF -- "$m" <<<"$MODELS_NOW"; then ok "Modelo $m ya registrado"
+  else log "Registrando modelo $m"; "${MGX[@]}" model add "$PUUID" "$m" | tail -3 || warn "No se pudo registrar $m (¿no está disponible en tu space?)"; fi
+done
+
+# --- ruta externa: el router no confía en el certificado autofirmado del gateway (sin destinationCA -> 503) ----------
+if oc_ get route model-gateway -n "$NS" >/dev/null 2>&1; then
+  GWCERT="$STATE_DIR/model-gateway-ca.crt"
+  openssl s_client -connect "localhost:$PF_PORT" -showcerts </dev/null 2>/dev/null | awk '/BEGIN CERTIFICATE/{f=1} f{print} /END CERTIFICATE/{exit}' > "$GWCERT"
+  if grep -q 'BEGIN CERTIFICATE' "$GWCERT"; then
+    python3 -c 'import json,sys; print(json.dumps({"metadata":{"annotations":{"haproxy.router.openshift.io/timeout":"300s"}},"spec":{"tls":{"destinationCACertificate":open(sys.argv[1]).read()}}}))' "$GWCERT" > "$STATE_DIR/.route-patch.json"
+    oc_ patch route model-gateway -n "$NS" --type merge --patch-file "$STATE_DIR/.route-patch.json" >/dev/null && ok "Ruta model-gateway: destinationCACertificate + timeout 300s"
+    rm -f "$STATE_DIR/.route-patch.json"
+  else warn "No pude leer el certificado del gateway; la ruta externa seguirá dando 503 (TROUBLESHOOTING #25)."; fi
 fi
 
 # --- patch-secret: escribe el model id real del gateway en ibm-providers-config-secret ------------------------

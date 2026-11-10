@@ -10,3 +10,7 @@
 ICCXAIST*.zip
 *.bak.yaml
 gcddb-backup-*.sql
+.DS_Store
+.bob/
+__pycache__/
+*.pyc

@@ -1,0 +1,13 @@
+#!/usr/bin/env python3
+"""ibmca falso para las pruebas offline: sirve JSON de $FAKE_IBMCA_DIR/<proveedor>.json y guarda los update en <proveedor>.updated.json"""
+import os, sys
+d = os.environ["FAKE_IBMCA_DIR"]
+a = sys.argv[1:]
+if a[:2] == ["list", "ai-providers"] and len(a) == 3:
+    sys.stdout.write(open(os.path.join(d, a[2] + ".json")).read())
+elif a[:2] == ["update", "ai-providers"] and len(a) == 3:
+    data = sys.stdin.read()
+    open(os.path.join(d, a[2] + ".updated.json"), "w").write(data)
+    open(os.path.join(d, a[2] + ".json"), "w").write(data)
+else:
+    sys.exit("ibmca falso: comando no soportado: %s" % a)

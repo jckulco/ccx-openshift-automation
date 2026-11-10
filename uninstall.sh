@@ -14,7 +14,7 @@ echo "${C_R}${C_B}Se van a ELIMINAR los namespaces: $NS, $AUTH_NS e ibm-licensin
 read -r -p "Para confirmar escribe el nombre del namespace de contenido ($NS): " a
 [ "$a" = "$NS" ] || die "Cancelado."
 
-for cr in "ccxaiservices.ccxaiservices.operator.ibm.com" "modelgateway.modelgateway.cpd.ibm.com" \
+for cr in "cascluster.cas.ibm.com" "ccxaiservices.ccxaiservices.operator.ibm.com" "modelgateway.modelgateway.cpd.ibm.com" \
           "ccxwduservices.ccxwdu.operator.ibm.com" "fncmclusters.fncm.ibm.com"; do
   oc_ delete "$cr" --all -n "$NS" --ignore-not-found --wait=false 2>/dev/null || true
 done
@@ -30,5 +30,5 @@ ok "Eliminación lanzada (los namespaces pueden tardar unos minutos en desaparec
 if [ "$LOCAL" = 1 ]; then
   rm -rf "$STATE_DIR" "$WORK_DIR"; ok "Borrados .state y .work"
 else
-  rm -f "$DONE_DIR"/0[2-8]-* "$DONE_DIR/05-content-db"; ok "Marcas de fases 02-08 reiniciadas (se conserva la configuración)."
+  rm -f "$DONE_DIR"/0[2-9]-* "$DONE_DIR/05-content-db"; ok "Marcas de fases 02-09 reiniciadas (se conserva la configuración)."
 fi

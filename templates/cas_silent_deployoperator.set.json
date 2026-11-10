@@ -1,0 +1,9 @@
+{
+  "": {
+    "LICENSE_ACCEPT": @CAS_ACCEPT@,
+    "LICENSE_TYPE": "Premium",
+    "NAMESPACE": "@NS@",
+    "ENTITLEMENT_KEY": "@ENTITLEMENT_KEY@",
+    "PRIVATE_REGISTRY": false
+  }
+}

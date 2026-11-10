@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fase 08: resumen, URLs, comprobaciones de salud y lista de pasos MANUALES pendientes.
+# Fase 09: resumen, URLs, comprobaciones de salud y lista de pasos MANUALES pendientes.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=../lib/common.sh
@@ -7,7 +7,7 @@ source "$ROOT/lib/common.sh"
 load_all_env
 find_oc || die "No encuentro 'oc'."
 
-title "Fase 08 - Resumen"
+title "Fase 09 - Resumen"
 OUT="$STATE_DIR/ENDPOINTS.md"
 {
   echo "# Content Cortex 26.0.1 - endpoints ($(date -u +%FT%TZ))"
@@ -38,6 +38,7 @@ fi
 echo
 echo "${C_B}Pasos MANUALES que quedan (docs/MANUAL-STEPS.md):${C_0}"
 phase_done 07-ai-package || echo "  1. Descargar el paquete de AI Services y ejecutar:  CCX_AI_PACKAGE=/ruta.zip ./install.sh --only 07"
+phase_done 08-content-assistant || echo "  1b. Content Assistant incompleto: CCX_ICA_PACKAGE=/ruta/ICACMS_1.0.4_ML.zip ./install.sh --only 08"
 cat <<'TXT'
   2. ACCE: instalar el add-on "5.6.0 Persistent Text Extract Extensions" y marcar "Persistent Text Extracts enabled"
      en la clase Document del object store 'os' (sólo afecta a documentos NUEVOS).
@@ -45,5 +46,9 @@ cat <<'TXT'
      la ruta /opt/ibm/plugins/genaiAgentPlugin.jar; Server URL = https://reasoning-service-<ns>.<dominio-apps> (SIN /rsn).
   4. Navigator desktop: Layout > "Ask AI agents"; repositorio por defecto 'osrepo'.
   5. IBM Cloud: el Service ID de la API key debe ser colaborador del deployment space (si no: 403 SPACES0008E).
+  6. Content Assistant (ACCE): add-on "26.0.0 Gen AI Extensions" en 'os' + GenAI Configuration > Activate (Service URL = ruta 'cas').
+  7. Content Assistant (ACCE): suscripción "Document-Vector Index" en la clase Document (si no, nada se indexa).
+  8. Content Assistant (Navigator): plug-in /opt/ibm/intPlugins/genai/genaiPlugin.jar + "Ask Your Repository" en el desktop.
+  Verificar la indexación vectorial tras subir un documento NUEVO:  tools/vector-index-check.sh
 TXT
-mark_done 08-finish
+mark_done 09-finish

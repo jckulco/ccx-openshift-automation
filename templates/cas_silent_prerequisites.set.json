@@ -1,0 +1,17 @@
+{
+  "": {
+    "NAMESPACE": "@NS@",
+    "LICENSE": "Premium",
+    "PLATFORM": 1,
+    "FIPS_SUPPORT": false,
+    "GENERATE_NETWORK_POLICIES": false,
+    "AI_PROVIDER_COUNT": 1,
+    "AI_PROVIDER_TYPE": 3,
+    "MODELGATEWAY_SSL_ENABLED": true
+  },
+  "VECTORDB": {
+    "DATABASE_TYPE": 1,
+    "DATABASE_AUTH_TYPE": 1,
+    "DATABASE_SSL_ENABLE": true
+  }
+}

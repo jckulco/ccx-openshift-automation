@@ -29,3 +29,26 @@ Model Gateway → watsonx.ai (`openai/gpt-oss-120b`).
 - El agente depende de que el Service ID de la API key sea colaborador del deployment space.
 - `grep -v Running` esconde pods `0/1 Running`.
 - La licencia y la descarga del paquete de AI Services son decisiones/acciones del usuario.
+
+---
+# Sesión 2: Content Assistant (ICACMS 1.0.4) sobre el mismo cluster
+## Resultado
+Content Assistant desplegado (`CASCluster casdeploy`, Route `cas`), con OpenSearch 3.6.0, proveedor `modelgateway_openai` (Llama 3.3 70B + e5-large),
+activado en el object store `os`, suscripción de indexación vectorial y plug-in en Navigator. *Ask Your Repository* respondió preguntas sobre documentos
+subidos DESPUÉS de crear la suscripción. Reasoning Service de Navigator se mantuvo en `openai/gpt-oss-120b`.
+
+## Cronología
+OpenSearch (chart 3.6.0) → `deploy_operator.py` → `gather` → TOML → `generate`/`validate` (falló por SAN) → CA/cert propios → upgrade Helm → fallo del conector por
+CA sin `keyUsage` → certificados estrictos → CASCluster Ready → `ibmca login` falla con ccxadmin → usuario `genai-service-user` → proveedor y embeddings →
+(TechZone nueva: clave de watsonx.ai caduca) recrear proveedor del gateway, WDU → ruta del gateway 503 → destinationCA + timeout → add-on y activación en ACCE →
+plug-in → suscripción `Document-Vector Index` → pruebas de indexación y del agente.
+
+## Lecciones
+- Verificación TLS **estricta** en Python 3.13 (CA con keyUsage; servidor con SAN, SKI/AKI; llave PKCS#8).
+- `ibmca login` ≠ FileNet: valida contra OpenSearch con el rol `ibm-genai-document-manager`.
+- Embeddings fijos al activar el object store; decidir antes el modelo.
+- Un LLM de razonamiento (gpt-oss) no sirve como LLM de Content Assistant; sí como el del agente de Navigator.
+- Sólo documentos nuevos o con check-in se indexan; la suscripción es obligatoria.
+- La ruta externa del gateway necesita destinationCA y timeout.
+- El `validate` de IBM necesita correr dentro del cluster.
+- Al cambiar de cuenta de watsonx.ai: clave **y** space en gateway, WDU (secreto + `ccx-wdu.toml`) y Reasoning Service.
