@@ -2,15 +2,29 @@
 """Configura Keycloak (laboratorio) para IBM Content Cortex.
 
 Crea, de forma idempotente:
-  1. realm "ccx"
+  1. realm "ccx" + duración de tokens y sesiones (ver "Tokens y sesiones" abajo)
   2. federación LDAP (OpenLDAP de ibm-auth) + mapper de grupos + sincronización
   3. cliente OIDC confidencial "ccx" con claim "groups"
   4. archivo ./ccx-idp.env (chmod 600) con discovery URL, client ID y client secret
-  5. prueba de login de "alice" contra el realm
+  5. prueba de login de "alice" contra el realm (muestra la vida útil real del access token)
 
 Uso (lo invoca phases/02-auth.sh; requiere .state/auth-secrets.env y sesión de oc iniciada):
   OC=oc python3 setup-keycloak.py "https://cpe-ibm-content.apps.../*" "https://navigator-ibm-content.apps.../*"
     (los argumentos son los redirect URIs del cliente; si el cliente ya existe, los actualiza)
+  Sin argumentos, en un ambiente ya instalado, NO toca los redirect URIs: sirve para reaplicar sólo los tiempos
+  de tokens/sesiones (TROUBLESHOOTING #34).
+
+Tokens y sesiones (por qué):
+  Navigator, ACCE y GraphQL corren en Liberty con disable_ltpa_cookie=true (valor por defecto del operador) y
+  reAuthnOnAccessTokenExpire=true (valor por defecto de Liberty): la sesión web dura lo que dura el ACCESS TOKEN
+  del IdP. Al caducar, Liberty redirige el navegador a Keycloak, que responde sin pedir contraseña (sesión SSO viva)
+  y devuelve al usuario a la página INICIAL de Navigator/ACCE, perdiendo lo que estuviera haciendo. Keycloak emite
+  por defecto access tokens de sólo 5 minutos, así que esto pasa continuamente. Para el laboratorio se alargan:
+    KC_ACCESS_TOKEN_LIFESPAN  (s, def. 28800 = 8 h)   vida del access token (= duración efectiva de la sesión web)
+    KC_SSO_SESSION_IDLE       (s, def. 28800 = 8 h)   inactividad máxima de la sesión de Keycloak
+    KC_SSO_SESSION_MAX        (s, def. 43200 = 12 h)  duración máxima de la sesión de Keycloak
+  Keycloak recorta el access token al tiempo que le quede a la sesión, por eso las tres van juntas.
+  En producción usa valores acordes a tu política de seguridad.
 
 Solo biblioteca estándar de Python (3.9+). No imprime contraseñas ni secretos.
 """
@@ -32,6 +46,11 @@ LDAP_URL = "ldap://openldap.%s.svc.cluster.local:389" % NS
 STATE_DIR = os.environ.get("CCX_STATE_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".state"))
 SECRETS_FILE = os.path.join(STATE_DIR, "auth-secrets.env")
 OUT_FILE = os.path.join(STATE_DIR, "ccx-idp.env")
+
+# Tokens y sesiones (segundos). Ver la explicación en el docstring.
+ACCESS_TOKEN_LIFESPAN = int(os.environ.get("KC_ACCESS_TOKEN_LIFESPAN", "28800"))
+SSO_SESSION_IDLE = int(os.environ.get("KC_SSO_SESSION_IDLE", "28800"))
+SSO_SESSION_MAX = int(os.environ.get("KC_SSO_SESSION_MAX", "43200"))
 
 CTX = ssl._create_unverified_context()  # la ruta usa la CA del ingress de OpenShift (laboratorio)
 
@@ -120,6 +139,21 @@ def main():
     else:
         fail("consulta del realm (HTTP %s)" % st, realm)
     realm_id = realm["id"]
+
+    # Duración de tokens y sesiones (se aplica SIEMPRE, también si el realm ya existía).
+    # Con los 5 min por defecto de Keycloak, Navigator/ACCE recargan la página inicial cada vez que caduca el token.
+    if ACCESS_TOKEN_LIFESPAN > SSO_SESSION_MAX:
+        print(">> AVISO: KC_ACCESS_TOKEN_LIFESPAN > KC_SSO_SESSION_MAX; Keycloak recortará el token a la sesión")
+    timeouts = {
+        "accessTokenLifespan": ACCESS_TOKEN_LIFESPAN,
+        "ssoSessionIdleTimeout": SSO_SESSION_IDLE,
+        "ssoSessionMaxLifespan": SSO_SESSION_MAX,
+    }
+    st, _, body = http("PUT", "%s/%s" % (admin, REALM), token, data=timeouts)
+    if st not in (200, 204):
+        fail("no se pudieron ajustar los tiempos de tokens/sesiones del realm (HTTP %s)" % st, body)
+    print(">> Realm '%s': access token %ss, sesión SSO inactiva %ss, sesión SSO máx. %ss"
+          % (REALM, ACCESS_TOKEN_LIFESPAN, SSO_SESSION_IDLE, SSO_SESSION_MAX))
 
     # --- 2. Federación LDAP ---
     st, _, comps = http(
@@ -233,6 +267,19 @@ def main():
         client_uuid = hdrs["location"].rstrip("/").split("/")[-1]
         print(">> Cliente '%s' creado" % CLIENT_ID)
 
+    # Quitar overrides por cliente que acortarían otra vez los tokens/sesiones (p. ej. puestos a mano en la consola)
+    st, _, rep = http("GET", "%s/%s/clients/%s" % (admin, REALM, client_uuid), token)
+    if st == 200:
+        attrs = rep.get("attributes") or {}
+        overrides = [k for k in ("access.token.lifespan", "client.session.idle.timeout", "client.session.max.lifespan")
+                     if str(attrs.get(k, "")).strip() not in ("", "0", "-1")]
+        if overrides:
+            for k in overrides:
+                attrs[k] = ""
+            rep["attributes"] = attrs
+            st, _, body = http("PUT", "%s/%s/clients/%s" % (admin, REALM, client_uuid), token, data=rep)
+            print(">> Cliente '%s': quitados overrides de tiempos (%s): HTTP %s" % (CLIENT_ID, ", ".join(overrides), st))
+
     # Claim "groups" en los tokens
     st, _, body = http(
         "POST", "%s/%s/clients/%s/protocol-mappers/models" % (admin, REALM, client_uuid), token, data={
@@ -274,6 +321,11 @@ def main():
               "password": secrets["PW_ALICE"], "scope": "openid"})
     if st == 200:
         print(">> Login de prueba con 'alice' (LDAP -> Keycloak): OK")
+        life = tokresp.get("expires_in") if isinstance(tokresp, dict) else None
+        if life is not None:
+            print(">> Vida útil del access token emitido: %ss (≈ duración de la sesión web en Navigator/ACCE)" % life)
+            if int(life) < 3600:
+                print(">> AVISO: el token dura menos de 1 h; Navigator/ACCE volverán a su página inicial al caducar")
     else:
         print(">> AVISO: login de prueba con 'alice' falló (HTTP %s): %s" % (st, str(tokresp)[:300]))
 

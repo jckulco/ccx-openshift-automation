@@ -25,7 +25,9 @@ load_env "$AUTH_SECRETS_FILE"
 HOSTS=(cpe cpe-stless graphql navigator tm reasoning-service model-gateway)
 URIS=()
 for h in "${HOSTS[@]}"; do URIS+=("https://${h}-${CONTENT_NS}.${APPS_DOMAIN}/*"); done
-log "Configurando Keycloak (realm ccx, federación LDAP, cliente OIDC)"
+# setup-keycloak.py también alarga la vida de los tokens/sesiones del realm (con los 5 min por defecto de Keycloak,
+# Navigator/ACCE vuelven a su página inicial cada vez que caduca el token: TROUBLESHOOTING #34).
+log "Configurando Keycloak (realm ccx, tiempos de tokens/sesiones, federación LDAP, cliente OIDC)"
 NS="$AUTH_NS" python3 "$ROOT/tools/setup-keycloak.py" "${URIS[@]}"
 load_env "$IDP_FILE"
 [ -n "${IDP_DISCOVERY_URL:-}" ] || die "setup-keycloak.py no generó ccx-idp.env"
