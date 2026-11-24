@@ -97,8 +97,9 @@ persistence:
   enableInitChown: false      # sin initContainer root (OpenShift)
 sysctlInit:
   enabled: false              # sin privilegios; en un nodo no hace falta max_map_count
-securityContext: null         # el SCC de OpenShift asigna el UID
-podSecurityContext: null
+rbac:                         # SA propio: la imagen sólo arranca como UID 1000 (/usr/share/opensearch es 0700)
+  create: true
+  serviceAccountName: opensearch-os
 extraEnvs:
 YAML
   [ "$1" = tls ] && printf '  - name: DISABLE_INSTALL_DEMO_CONFIG\n    value: "true"\n' >> "$VALUES"
@@ -140,6 +141,7 @@ os_health_tls() { os_api GET _cluster/health </dev/null | grep -q '"status":"\(g
 if ! phase_done 08-os-install; then
   log "Instalando OpenSearch $OS_CHART_VERSION (chart comunitario, etapa 1: certificados de demo)"
   helm repo add opensearch https://opensearch-project.github.io/helm-charts/ --force-update >/dev/null; helm repo update >/dev/null
+  oc_ adm policy add-scc-to-user anyuid -z opensearch-os -n "$NS" >/dev/null
   write_os_values demo
   helm upgrade --install opensearch opensearch/opensearch --version "$OS_CHART_VERSION" -n "$NS" -f "$VALUES" >/dev/null
   os_rollout
