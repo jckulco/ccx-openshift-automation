@@ -77,14 +77,14 @@ printf 'KEYSTORE_PASSWORD = "<Required>"\nLTPA_PASSWORD = "<Required>"\nFNCM_LOG
 printf '[wxai]\nWXAI_API_KEY = "<Required>"\nWXAI_KVP_MODEL_ID = "<Required>"\nWXAI_KVP_SPACE_ID = """<Required>"""\nWXAI_SEMANTIC_KVP_MODEL_ID = "<Required>"\nWXAI_SEMANTIC_KVP_SPACE_ID = """<Required>"""\nWXAI_IMAGE_DESCRIPTION_MODEL_ID = "<Required>"\nWXAI_IMAGE_DESCRIPTION_SPACE_ID = """<Required>"""\n' > "$TMP/prop/ccx-wdu.toml"
 t "fill-properties no deja <Required>" python3 tools/fill-properties.py "$TMP/prop" "$TMP/state"
 t "valores correctos" bash -c "grep -q 'ccx-content-pg-rw.ibm-content.svc.cluster.local' $TMP/prop/content_db_server.toml && grep -q 'navigator-ibm-content.apps.example.com\"' $TMP/prop/aiservices_integration.toml && grep -q 'cn=admin,dc=example,dc=org' $TMP/prop/content_ldap_server.toml && ! grep -q Required $TMP/prop/*.toml"
-t "permisos 600 en secretos" bash -c "[ \$(stat -f %Lp $TMP/state/ccx-content-secrets.env 2>/dev/null || stat -c %a $TMP/state/ccx-content-secrets.env) = 600 ]"
+t "permisos 600 en secretos" bash -c "[ \$(stat -c %a $TMP/state/ccx-content-secrets.env 2>/dev/null || stat -f %Lp $TMP/state/ccx-content-secrets.env) = 600 ]"
 t "idempotente" python3 tools/fill-properties.py "$TMP/prop" "$TMP/state"
 
 echo "== fase 00 con oc/helm falsos (modo no interactivo)"
 t "00-configure no interactivo" env PATH="$ROOT/tests/fake-bin:$PATH" OC="$ROOT/tests/fake-bin/oc" CCX_STATE_DIR="$TMP/st00" \
   CCX_NONINTERACTIVE=1 CCX_ASSUME_YES=1 CCX_ACCEPT_LICENSE=yes CCX_ENTITLEMENT_KEY=dummy CCX_WXAI_API_KEY=dummy \
   CCX_WXAI_SPACE_ID=11111111-1111-1111-1111-111111111111 bash phases/00-configure.sh
-t "00 guarda config y secretos 600" bash -c "grep -q \"WXAI_MODEL_ID='openai/gpt-oss-120b'\" $TMP/st00/config.env && [ \$(stat -f %Lp $TMP/st00/secrets.env 2>/dev/null || stat -c %a $TMP/st00/secrets.env) = 600 ] && ! grep -q dummy $TMP/st00/config.env"
+t "00 guarda config y secretos 600" bash -c "grep -q \"WXAI_MODEL_ID='openai/gpt-oss-120b'\" $TMP/st00/config.env && [ \$(stat -c %a $TMP/st00/secrets.env 2>/dev/null || stat -f %Lp $TMP/st00/secrets.env) = 600 ] && ! grep -q dummy $TMP/st00/config.env"
 t "install.sh status" env PATH="$ROOT/tests/fake-bin:$PATH" OC="$ROOT/tests/fake-bin/oc" CCX_STATE_DIR="$TMP/st00" bash install.sh status
 
 echo "== apply_retry (webhook de PG intermitente)"
@@ -105,7 +105,7 @@ echo "== Content Assistant (fase 08): certificados, property files y proveedores
 t "gen-opensearch-certs: CA estricta, SAN, PKCS#8" bash -c "bash tools/gen-opensearch-certs.sh $TMP/oscerts ibm-content >/dev/null && cd $TMP/oscerts \
   && openssl x509 -in ca.crt -noout -ext keyUsage,basicConstraints | grep -q -E 'Certificate Sign' && openssl x509 -in ca.crt -noout -ext basicConstraints | grep -q 'CA:TRUE' \
   && openssl x509 -in tls.crt -noout -ext subjectAltName | grep -q 'opensearch-cluster-master.ibm-content.svc' && head -1 tls.key | grep -q 'BEGIN PRIVATE KEY' \
-  && openssl verify -x509_strict -CAfile ca.crt tls.crt >/dev/null && [ \$(stat -f %Lp tls.key 2>/dev/null || stat -c %a tls.key) = 600 ]"
+  && openssl verify -x509_strict -CAfile ca.crt tls.crt >/dev/null && [ \$(stat -c %a tls.key 2>/dev/null || stat -f %Lp tls.key) = 600 ]"
 t "gen-opensearch-certs idempotente (no regenera)" bash -c "h1=\$(python3 -c 'import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],\"rb\").read()).hexdigest())' $TMP/oscerts/tls.crt); bash tools/gen-opensearch-certs.sh $TMP/oscerts ibm-content | grep -q 'ya existentes'; [ \"\$h1\" = \"\$(python3 -c 'import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],\"rb\").read()).hexdigest())' $TMP/oscerts/tls.crt)\" ]"
 mkdir -p "$TMP/cas/prop" "$TMP/cas/state" "$TMP/cas/mgw"
 printf '[MODELGATEWAY]\nURL = "<Required>"\nAPI_KEY = """<Required>"""\nSSL_ENABLED = true\n' > "$TMP/cas/prop/cas_properties.toml"
@@ -116,7 +116,7 @@ printf "OS_ADMIN_PASSWORD='Pw-Test-12345Aa1!'\n" > "$TMP/cas/state/ccx-content-s
 echo '{"tenant":{"apikey":"tenant-key-xyz","name":"ccx","uuid":"u"}}' > "$TMP/cas/mgw/state.json"
 t "cas-fill-properties rellena y no deja <Required>" bash -c "python3 tools/cas-fill-properties.py $TMP/cas/prop $TMP/cas/state $TMP/cas/mgw/state.json && ! grep -q Required $TMP/cas/prop/*.toml \
   && grep -q 'opensearch-cluster-master.ibm-content.svc:9200' $TMP/cas/prop/cas_vector_database.toml && grep -q 'ocs-storagecluster-cephfs' $TMP/cas/prop/cas_deployment.toml \
-  && grep -q 'tenant-key-xyz' $TMP/cas/prop/cas_properties.toml && [ \$(stat -f %Lp $TMP/cas/prop/cas_vector_database.toml 2>/dev/null || stat -c %a $TMP/cas/prop/cas_vector_database.toml) = 600 ]"
+  && grep -q 'tenant-key-xyz' $TMP/cas/prop/cas_properties.toml && [ \$(stat -c %a $TMP/cas/prop/cas_vector_database.toml 2>/dev/null || stat -f %Lp $TMP/cas/prop/cas_vector_database.toml) = 600 ]"
 t "cas-fill-properties idempotente" python3 tools/cas-fill-properties.py "$TMP/cas/prop" "$TMP/cas/state" "$TMP/cas/mgw/state.json"
 t "plantillas silent de Content Assistant son JSON válido" bash -c "sed -e 's/@CAS_ACCEPT@/true/' -e 's/@NS@/ibm-content/' -e 's/@ENTITLEMENT_KEY@/k/' templates/cas_silent_deployoperator.set.json | python3 -m json.tool >/dev/null \
   && sed 's/@NS@/ibm-content/' templates/cas_silent_prerequisites.set.json | python3 -m json.tool >/dev/null"

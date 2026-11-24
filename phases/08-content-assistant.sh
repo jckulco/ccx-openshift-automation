@@ -27,7 +27,7 @@ title "Fase 08 - IBM Content Assistant (ICACMS 1.0.4)"
 phase_done 05-content && phase_done 06-model-gateway || die "Primero deben estar hechas las fases 05 y 06."
 
 CAS_REPO_URL="${CAS_REPO_URL:-https://github.com/ibm-ecm/ibm-content-assistant-client-managed-software.git}"
-CAS_REPO_REF="${CAS_REPO_REF:-v1.0.4}"
+CAS_REPO_REF="${CAS_REPO_REF:-1.0.4}"   # rama (el tag v1.0.4 ya no existe; TROUBLESHOOTING #38)
 CAS_DIR="$WORK_DIR/ibm-content-assistant"; CAS_SCRIPTS="$CAS_DIR/scripts"; CAS_VENV="$WORK_DIR/cas-venv"
 IBMCA_VENV="$WORK_DIR/ibmca-venv"
 OS_CERTS="$STATE_DIR/os-certs"
@@ -97,8 +97,9 @@ persistence:
   enableInitChown: false      # sin initContainer root (OpenShift)
 sysctlInit:
   enabled: false              # sin privilegios; en un nodo no hace falta max_map_count
-securityContext: null         # el SCC de OpenShift asigna el UID
-podSecurityContext: null
+rbac:                         # SA propio: la imagen sólo arranca como UID 1000 (/usr/share/opensearch es 0700)
+  create: true
+  serviceAccountName: opensearch-os
 extraEnvs:
 YAML
   [ "$1" = tls ] && printf '  - name: DISABLE_INSTALL_DEMO_CONFIG\n    value: "true"\n' >> "$VALUES"
@@ -140,6 +141,7 @@ os_health_tls() { os_api GET _cluster/health </dev/null | grep -q '"status":"\(g
 if ! phase_done 08-os-install; then
   log "Instalando OpenSearch $OS_CHART_VERSION (chart comunitario, etapa 1: certificados de demo)"
   helm repo add opensearch https://opensearch-project.github.io/helm-charts/ --force-update >/dev/null; helm repo update >/dev/null
+  oc_ adm policy add-scc-to-user anyuid -z opensearch-os -n "$NS" >/dev/null
   write_os_values demo
   helm upgrade --install opensearch opensearch/opensearch --version "$OS_CHART_VERSION" -n "$NS" -f "$VALUES" >/dev/null
   os_rollout
@@ -278,7 +280,8 @@ if [ ! -f "$IBMCA_VENV/bin/ibmca" ]; then
     warn "Content Assistant ya está desplegado; sólo faltan los proveedores de IA (CLI ibmca)."
     exit 10
   fi
-  PY="$(command -v python3.13 || command -v python3.12 || command -v python3)"
+  PY="$(command -v python3.13 || true)"
+  [ -n "$PY" ] || die "La CLI ibmca exige Python 3.13 y no está instalado (sudo dnf install -y python3.13; viene de EPEL en RHEL 9; TROUBLESHOOTING #37)."
   "$PY" -m venv "$IBMCA_VENV"; "$IBMCA_VENV/bin/pip" install -q --upgrade pip; "$IBMCA_VENV/bin/pip" install -q "$WHL"
 fi
 export PATH="$IBMCA_VENV/bin:$PATH"

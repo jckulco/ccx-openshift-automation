@@ -28,6 +28,12 @@ if [ "${#missing[@]}" -gt 0 ]; then
   else die "No hay dnf. Instala manualmente: ${missing[*]}"; fi
 fi
 ok "python3.12 / git / java / unzip / openssl / curl / podman presentes"
+# Python 3.13: lo exige la CLI ibmca de Content Assistant (fase 08). En RHEL 9 viene de EPEL; si no está disponible, sólo avisa.
+if ! command -v python3.13 >/dev/null 2>&1; then
+  log "Instalando python3.13 (CLI ibmca de Content Assistant)"
+  $SUDO dnf install -y python3.13 >/dev/null 2>&1 && ok "python3.13 instalado" \
+    || warn "No pude instalar python3.13 (¿EPEL habilitado?). La fase 08 lo necesita para la CLI ibmca (TROUBLESHOOTING #37)."
+fi
 
 # --- Helm 4 ------------------------------------------------------------------------------------------------
 helm_major() { helm version --template '{{.Version}}' 2>/dev/null | sed -E 's/^v([0-9]+).*/\1/'; }
