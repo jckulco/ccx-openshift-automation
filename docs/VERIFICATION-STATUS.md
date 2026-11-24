@@ -45,7 +45,7 @@ Leyenda: ✅ ejecutado y funcionando en la sesión de referencia (manualmente) �
   procedimiento del *sweep job* para documentos existentes (#31), extracción de WDU de punta a punta, usuarios de demo de OpenSearch con contraseña por defecto.
 
 ## Segunda instalación completa (cluster nuevo, OCP 4.21.24, nov 2026)
-- `install.sh` completó las fases 00 → 08 (la 08 tras las correcciones #35 a #38 y la CA de la ruta del gateway, #36). Fase 09 y pasos manuales: pendientes de registrar.
+- `install.sh` completó las fases 00 → 08 (la 08 tras las correcciones #35 a #38 y la CA de la ruta del gateway, #36). Fase 09 y pasos manuales (ACCE y Navigator) completados. Content Assistant y *Ask AI agents* confirmados por el usuario con una prueba funcional en esa instalación. Indexación vectorial observada: 3 documentos → 14 fragmentos en el índice del object store (llega en lote unos minutos después de subir; la primera comprobación, hecha antes del lote, salió vacía).
 - Sin resolver: en la fase 03 el *License Service operator* agotó la espera (`Tiempo agotado esperando: License Service operator listo`) y la instalación siguió; no se investigó (#39 documenta sólo el corte transitorio de la fase 07, de causa sin confirmar).
 - Las correcciones de esta sección se probaron con `bash -n` y las pruebas offline; el efecto real se vio en ese cluster (cada una se aplicó a mano antes de automatizarla).
 
