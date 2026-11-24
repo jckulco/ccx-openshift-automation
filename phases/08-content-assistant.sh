@@ -27,7 +27,7 @@ title "Fase 08 - IBM Content Assistant (ICACMS 1.0.4)"
 phase_done 05-content && phase_done 06-model-gateway || die "Primero deben estar hechas las fases 05 y 06."
 
 CAS_REPO_URL="${CAS_REPO_URL:-https://github.com/ibm-ecm/ibm-content-assistant-client-managed-software.git}"
-CAS_REPO_REF="${CAS_REPO_REF:-v1.0.4}"
+CAS_REPO_REF="${CAS_REPO_REF:-1.0.4}"   # rama (el tag v1.0.4 ya no existe; TROUBLESHOOTING #38)
 CAS_DIR="$WORK_DIR/ibm-content-assistant"; CAS_SCRIPTS="$CAS_DIR/scripts"; CAS_VENV="$WORK_DIR/cas-venv"
 IBMCA_VENV="$WORK_DIR/ibmca-venv"
 OS_CERTS="$STATE_DIR/os-certs"
@@ -280,7 +280,8 @@ if [ ! -f "$IBMCA_VENV/bin/ibmca" ]; then
     warn "Content Assistant ya está desplegado; sólo faltan los proveedores de IA (CLI ibmca)."
     exit 10
   fi
-  PY="$(command -v python3.13 || command -v python3.12 || command -v python3)"
+  PY="$(command -v python3.13 || true)"
+  [ -n "$PY" ] || die "La CLI ibmca exige Python 3.13 y no está instalado (sudo dnf install -y python3.13; viene de EPEL en RHEL 9; TROUBLESHOOTING #37)."
   "$PY" -m venv "$IBMCA_VENV"; "$IBMCA_VENV/bin/pip" install -q --upgrade pip; "$IBMCA_VENV/bin/pip" install -q "$WHL"
 fi
 export PATH="$IBMCA_VENV/bin:$PATH"

@@ -10,7 +10,7 @@ AI Services (Reasoning Service, MCP, agente de Navigator), Enhanced Extraction (
 > (OpenShift 4.21.24, ODF, 3 masters + 5 workers de 32 vCPU / 128 GB) y, tras los pasos manuales, Navigator, ACCE y el agente
 > de IA funcionaron. En esa primera ejecución hubo que corregir cuatro detalles (PATH de Helm, webhook de PostgreSQL,
 > falso positivo de la fase 07, errores ocultos), ya incorporados. Detalle en [`docs/VERIFICATION-STATUS.md`](docs/VERIFICATION-STATUS.md).
-> ⚠️ **La fase 08 (Content Assistant) automatiza pasos que se hicieron a mano y se verificaron en el mismo cluster, pero el script en sí aún no se ha ejecutado de punta a punta**; ver la tabla de [VERIFICATION-STATUS](docs/VERIFICATION-STATUS.md).
+> ⚠️ **La fase 08 (Content Assistant) se ejecutó de punta a punta en una segunda instalación (cluster nuevo) tras cinco correcciones (TROUBLESHOOTING #35 a #38 y la CA de la ruta del gateway); los pasos manuales de ACCE/Navigator y la prueba funcional de Content Assistant en esa instalación aún no están verificados**; ver la tabla de [VERIFICATION-STATUS](docs/VERIFICATION-STATUS.md).
 > Todas las fases son idempotentes y retoman donde quedaron. Una sola ejecución no es una garantía: si algo falla en tu
 > cluster, mira [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md).
 

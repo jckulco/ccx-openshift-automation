@@ -84,7 +84,19 @@ if oc_ get route model-gateway -n "$NS" >/dev/null 2>&1; then
   GWCERT="$STATE_DIR/model-gateway-ca.crt"
   openssl s_client -connect "localhost:$PF_PORT" -showcerts </dev/null 2>/dev/null | awk '/BEGIN CERTIFICATE/{f=1} f{print} /END CERTIFICATE/{exit}' > "$GWCERT"
   if grep -q 'BEGIN CERTIFICATE' "$GWCERT"; then
-    python3 -c 'import json,sys; print(json.dumps({"metadata":{"annotations":{"haproxy.router.openshift.io/timeout":"300s"}},"spec":{"tls":{"destinationCACertificate":open(sys.argv[1]).read()}}}))' "$GWCERT" > "$STATE_DIR/.route-patch.json"
+    # El router (HAProxy) exige una CA de verdad: si el gateway sirve una hoja firmada por la CA raíz del producto, la hoja sola
+    # NO valida (openssl error 20) y la ruta da 503. La CA raíz está en el secret que el gateway monta como 'tls-ca-1'. TROUBLESHOOTING #36.
+    ROUTE_CA="$STATE_DIR/model-gateway-route-ca.crt"; : > "$ROUTE_CA"
+    CA_SECRET="$(oc_ get deploy model-gateway -n "$NS" -o jsonpath='{.spec.template.spec.volumes[?(@.name=="tls-ca-1")].secret.secretName}' 2>/dev/null || true)"
+    CA_SECRET="${CA_SECRET:-content-root-ca}"
+    oc_ get secret "$CA_SECRET" -n "$NS" -o jsonpath='{.data.tls\.crt}' 2>/dev/null | base64 -d > "$ROUTE_CA" 2>/dev/null || true
+    if [ -s "$ROUTE_CA" ] && openssl verify -CAfile "$ROUTE_CA" "$GWCERT" >/dev/null 2>&1; then
+      ok "CA del gateway ($CA_SECRET) valida el certificado que sirve"
+    else
+      warn "La CA del secret '$CA_SECRET' no valida el certificado del gateway; uso el certificado servido (si la ruta da 503: TROUBLESHOOTING #36)."
+      cp "$GWCERT" "$ROUTE_CA"
+    fi
+    python3 -c 'import json,sys; print(json.dumps({"metadata":{"annotations":{"haproxy.router.openshift.io/timeout":"300s"}},"spec":{"tls":{"destinationCACertificate":open(sys.argv[1]).read()}}}))' "$ROUTE_CA" > "$STATE_DIR/.route-patch.json"
     oc_ patch route model-gateway -n "$NS" --type merge --patch-file "$STATE_DIR/.route-patch.json" >/dev/null && ok "Ruta model-gateway: destinationCACertificate + timeout 300s"
     rm -f "$STATE_DIR/.route-patch.json"
   else warn "No pude leer el certificado del gateway; la ruta externa seguirá dando 503 (TROUBLESHOOTING #25)."; fi

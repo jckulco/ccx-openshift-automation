@@ -6,7 +6,7 @@
 - Salida a Internet hacia `cp.icr.io`, `icr.io`, `quay.io`, `docker.io`, `github.com`, `get.helm.sh`, `pypi.org`, `iam.cloud.ibm.com` y la región de watsonx.ai.
 
 ## Bastión
-RHEL 9 con `oc` (el instalador acepta `OC=/ruta/a/oc`) y `dnf`. La fase 01 instala: Python 3.12, git, Java 21 (`java-21-openjdk-headless`),
+RHEL 9 con `oc` (el instalador acepta `OC=/ruta/a/oc`) y `dnf`. La fase 01 instala: Python 3.12 y 3.13 (la CLI `ibmca` de Content Assistant exige 3.13; en RHEL 9 viene de EPEL), git, Java 21 (`java-21-openjdk-headless`),
 unzip, openssl, curl, podman y **Helm ≥ 4** (referencia 4.1.1). Los scripts de IBM se ejecutan desde `scripts/`
 (el `version.toml` se busca en el directorio *padre* del cwd; las fases ya lo hacen así).
 
